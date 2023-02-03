@@ -1,5 +1,6 @@
 import os
 import glob
+from functools import reduce
 import utils
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
@@ -19,6 +20,7 @@ from natsort import natsorted
 import pickle
 from numpy.linalg import norm
 import cv2
+import scipy.io as sio
 import torch.utils.data as data_utils
 
 class BaseDataset(Dataset):
@@ -27,7 +29,6 @@ class BaseDataset(Dataset):
         self.mode = mode
         self.img_type = "." + img_type
         self.path = path
-        self.files = natsorted(glob.glob(os.path.join(self.path, "*" + self.img_type)))
 
     def __get_item__(self, idx):
         pass
@@ -137,7 +138,7 @@ class SimpleDataset(BaseDataset):
         return glob.glob(path1), path2
 
 class MESSIDORDataset(BaseDataset):
-    def __init__(self, mode, img_type, dataroot):
+    def __init__(self, mode, img_type, bases, annots, dataroot):
         super().__init__(mode, img_type, dataroot)
 
         self.valid_distance = None
@@ -145,11 +146,21 @@ class MESSIDORDataset(BaseDataset):
         self.img_center = None
         self.patch_mask = None
         self.curr_name = None
-        self.gt_path = None
 
-        self.prime_files = []
-        self.annot_files = []
-        self.annots = []
+        self.files = None
+        self.img_paths = None
+        self.names = None
+        self.data = None
+
+        self.annot_paths = None
+        self.annot_filepaths = None
+        self.annot_names = None
+        self.annot_values = None
+        
+        self.bases = bases
+        self.annots = annots
+
+        self.dataroot = dataroot
 
         # harcoded values we'll have to change later.
         self.img_diam = 1377
@@ -162,46 +173,68 @@ class MESSIDORDataset(BaseDataset):
         self.initialize()
 
     def initialize(self):
-        self.create_gt_path()
-        self.separate_files()
-        self.process_annot()
-        self.valid_distances()
-        self.create_patch_mask()
+        self.find_paths()
+        self.find_files()
 
-    def create_gt_path(self):
-        self.gt_path = os.path.join(self.path, "..", "GT")
-        assert os.path.exists(self.gt_path), "Ground truth path does not exist."
+    def find_paths(self):
+        self.create_annot_paths()
+        self.create_img_paths()
+
+    def create_annot_paths(self):
+        self.annot_paths = [os.path.join(self.dataroot, 'annotations', annot) for annot in self.annots]
+        utils.check_paths_exist(self.annot_paths)
+   
+    def create_img_paths(self):
+        self.img_paths = [os.path.join(self.dataroot, base) for base in self.bases]
+        utils.check_paths_exist(self.img_paths)
+
+    def find_files(self):
+        self.find_annots()
+        self.find_imgs()
+        self.read_annotations()
+        self.sort_stuff()
+        self.match_imgs_and_annots()
+
+    def match_imgs_and_annots(self):
+        self.data = dict()
+        self.data['names'] = []
+        self.data['paths'] = []
+        self.data['values'] = []
+        for name, value in zip(self.annot_names, self.annot_values):
+            if name in self.names and name not in self.data['names']:
+                idxs = utils.find_indices(self.names, name)
+                anno_idxs = utils.find_indices(self.annot_names, name)
+                paths = [self.files[idx] for idx in idxs]
+                values = np.array([self.annot_values[idx] for idx in anno_idxs])
+                mean_value = np.mean(values, axis=0)
+                assert len(set(paths)) == 1, f"same filename '{name}' found in two different folders!"
+                
+                self.data['names'].append(name)
+                self.data['paths'].append(paths[0])
+                self.data['values'].append(mean_value)
+
+    def sort_stuff(self):
+        self.sort_annots()
+        self.sort_imgs()
+
+    def sort_imgs(self):
+        pass
+
+    def sort_annots(self):
+        annots = sorted([[x, y] for x, y in zip(self.annot_names, self.annot_values)], key=lambda x: x[0])
+        self.annot_names = [x[0] for x in annots]
+        self.annot_values =[list(x[1]) for x in annots]
     
-    def separate_files(self):
-        for file in self.files:
-            if 'prime' in file:
-                self.prime_files.append(file)
-            else:
-                self.annot_files.append(file)
+    def find_imgs(self):
+        self.files = utils.flatten_list([glob.glob(os.path.join(path, "*" + self.img_type)) for path in self.img_paths])
+        self.create_names()
 
-    def process_annot(self):
-        if not os.listdir(self.gt_path):
-            for file in self.prime_files:
-                img1 = imageio.imread(file)
-                img2 = imageio.imread(MESSIDORDataset.prime_to_annot(file))
-                [x, y] = MESSIDORDataset.img_diff(img1, img2).max(-1).nonzero()
-                self.annots.append([int(np.median(x)), int(np.median(y))])   
-                print(f"done with {file}", end='\r')
-            self.annots = np.asarray(self.annots, dtype=np.int64) 
-            self.write_annots()
-        else:
-            self.load_annots()
-            
-    def write_annots(self):
-        with open(os.path.join(self.gt_path, "annots.pkl"), 'wb') as f:
-            pickle.dump({'prime_files': self.prime_files, 'annots': self.annots}, f)
+    def create_names(self):
+        self.names = [os.path.basename(filepath) for filepath in self.files]
 
-    def load_annots(self):
-        with open(os.path.join(self.gt_path, "annots.pkl"), 'rb') as f:
-            data = pickle.load(f)
-        assert set(self.prime_files) == set(data['prime_files']), 'files do not match.'
-        self.annots = data['annots']
-
+    def find_annots(self):
+        self.annot_filepaths = utils.flatten_list([glob.glob(os.path.join(os.path.join(path, '*.mat'))) for path in self.annot_paths])
+    
     def create_patch_mask(self):
         patch_rad = int(self.patch_diam/2)
         self.patch_mask = np.asarray([[1  if (x-patch_rad)**2 + (y-patch_rad)**2 < patch_rad ** 2 else 0 \
@@ -232,9 +265,10 @@ class MESSIDORDataset(BaseDataset):
         self.cols = list(self.labels.columns)
 
     def __getitem__(self, idx):
-        self.curr_name = Path(self.prime_files[idx]).stem
-        print(f"done with {self.curr_name}", end='\r')
-        return self.load_data(idx)
+        return_dict = {}
+        for key in self.data.keys():
+            return_dict[key] = self.data[key][idx]
+        return return_dict
 
     def get_centers(self):
         return [random.choice(self.valid_pixels) for _ in range(self.n_patch)]
@@ -246,7 +280,6 @@ class MESSIDORDataset(BaseDataset):
 
         for cx, cy in centers:
             patch = image[cx-patch_rad:cx+patch_rad, cy-patch_rad:cy+patch_rad, :]  * self.patch_mask
-
             patches.append(np.asarray(patch, dtype=np.uint8))
             labels.append(self.get_label(cx, cy, annot))
 
@@ -258,19 +291,37 @@ class MESSIDORDataset(BaseDataset):
 
     def is_valid(self, x, y):
         return (x-self.img_center)**2 + (y-self.img_center)**2 < self.valid_distance**2
+    
+    def read_annotations(self):
+        self.annot_names, self.annot_values = [], []
+        for filepath in self.annot_filepaths:
+           self.read_single_annot_file(filepath)
 
-    @staticmethod
-    def prime_to_annot(x, n=1):
-        return x.replace('prime', f"-{n}")
+    def read_single_annot_file(self, filepath):
+        A = sio.loadmat(filepath)
+        names = A['names']
+        names = [name[0] for name in names[0]]
+        values = A['values']
+        assert all(values[2]), "some of the annotations seem invalid!"
+        values = np.transpose(np.array(values[:2]))
+        self.annot_names.extend(names)
+        self.annot_values.extend(values)
+
+    def __len__(self):
+        return len(self.data['names'])
 
 def create_dataset():
+    bases = ["Base11", "Base12", "Base13", "Base14"] + \
+            ["Base21", "Base22", "Base23", "Base24"] + \
+            ["Base31", "Base32", "Base33", "Base34"]
+
+    annots = ["11_44", "11_12_13_14"]
     train_dataset = MESSIDORDataset(mode='train', img_type='tif', \
-         dataroot=r"/mnt/c/Users/ssohr/OneDrive/Documents/eye-project/dataset/MESSIDOR/MESSIDOR")
-    return data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+         bases=bases, annots=annots, dataroot=r"/mnt/c/Users/ssohr/OneDrive/Documents/optic-disk-localization/dataset")
+    return train_dataset, data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
 
 
 if __name__ == "__main__":
-    dataroot = r"/mnt/c/Users/ssohr/OneDrive/Documents/eye-project/dataset/MESSIDOR/MESSIDOR"
-    ds = MESSIDORDataset(mode='train', img_type='tif', dataroot=dataroot)
-    for i, item in enumerate(ds):
-        pass
+    dataset, A = create_dataset()
+    for i, data in enumerate(A):
+        print(data)
