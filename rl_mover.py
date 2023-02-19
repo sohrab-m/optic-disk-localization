@@ -19,6 +19,9 @@ class optic_disc(gym.Env):
     
     def __init__(self):
         super(optic_disc, self).__init__()
+        
+        self.create_world()
+        
         self.resolution= (154,154)
         self.x=154
         self.y=154
@@ -27,10 +30,12 @@ class optic_disc(gym.Env):
         self.action_space=Discrete(4)
         self.done=False
         self.disc_loc=[1000,1000]
+        self.x_bounds=[self.resolution//2 , self.world.shape[1]-self.resolution//2]
+        self.y_bounds=[self.resolution//2 , self.world.shape[1]-self.resolution//2]
         
         self.observation=Box(low=0, high=255,
                                 shape=(self.resolution[0], self.resolution[0], 3), dtype=np.uint8)
-        self.create_world()
+
     
     def step(self, action):
         self.action=action
@@ -38,6 +43,7 @@ class optic_disc(gym.Env):
         # if self.action==0:
         #     self.move=[0,-154]
         self.move=[self.action//2,self.action%2]
+        
         
         if self.action//2:
             self.x+=(2*(self.action%2)-1) * self.resolution[0]
@@ -60,7 +66,9 @@ class optic_disc(gym.Env):
         else:
             self.reward=-1
         
-        observation=self.observation
+        
+        
+        observation=self.get_frame()
         done=self.done
         info={}
         reward=self.reward
@@ -72,14 +80,27 @@ class optic_disc(gym.Env):
         
     ### TODO: make sure to load all the frames in the daataset
         return
-    
+        
+    def get_frame(self):
+        patch_rad = int(self.resolution/2)
+        self.patch_mask = np.asarray([[1  if (x-patch_rad)**2 + (y-patch_rad)**2 < patch_rad ** 2 else 0 \
+         for x in range(patch_rad*2)] for y in range(patch_rad*2)])
+        self.patch_mask = np.expand_dims(self.patch_mask, -1)
+        
+        self.patch = self.world[self.x-patch_rad:self.x+patch_rad, self.y-patch_rad:self.y+patch_rad, :] * self.patch_mask
+        
+        
+        
     def close(self):
         return
         
     def create_world(self):
         # load the frame 
-        img_path = os.path.join(r"C:\Users\ssohr\OneDrive\Documents\optic-disk-localization\dataset\Base11\Base11", "20051019_38557_0100_PP.tif")
-        self.world = cv2.imread("valid.jpg")
+        # img_path = os.path.join(r"C:\Users\ssohr\OneDrive\Documents\optic-disk-localization\dataset\Base11\Base11", "20051019_38557_0100_PP.tif")
+        self.world = cv2.imread("sample_img.tif")
+        print(self.world.shape[0])
+        return self.world
+        
         
     
 
@@ -92,6 +113,7 @@ mover=optic_disc()
 
 if __name__ == "__main__":
     env = optic_disc()
-    world = env.world
-    cv2.imwrite("test.jpg", world)
+    # world = env.world
+    img= env.create_world()
+    cv2.imwrite("test.jpg", img)
 
