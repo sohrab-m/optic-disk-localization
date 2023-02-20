@@ -23,8 +23,9 @@ class optic_disc(gym.Env):
         self.create_world()
         
         self.resolution= (154,154)
-        self.x=1000
-        self.y=1000
+        self.inital_loc=[1000,1000]
+        self.x=self.inital_loc[0]
+        self.y=self.inital_loc[1]
         self.optic_x = 800
         self.optic_y = 667
         self.optic_rad = 100
@@ -34,16 +35,16 @@ class optic_disc(gym.Env):
         self.action_set=            [ 0,     1,    2,    3]
         self.action_space=Discrete(4)
         self.done=False
-        self.disc_loc=[1000,1000]
+        
         # initial location in the form of (x,y)
-        self.inital_loc=[1000,1000]
+        
   
         # resultion can  be an even number only
         self.x_bounds=[self.resolution[0]//2 , self.world.shape[1]-self.resolution[0]//2]
         self.y_bounds=[self.resolution[0]//2 , self.world.shape[0]-self.resolution[0]//2]
 
-        self.observation=Box(low=0, high=255,
-                                shape=(self.resolution[0], self.resolution[0], 3), dtype=np.uint8)
+        self.observation=Box(low=0.0, high=255.0,
+                                shape=(self.resolution[0], self.resolution[1], 3), dtype=np.uint8)
 
     def make_valid(self):
         self.x = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
@@ -73,38 +74,44 @@ class optic_disc(gym.Env):
         # forcing the x and y values to be inside the acceptable range
         self.make_valid()
 
-        print('x', self.x, 'y', self.y)
+        # print('x', self.x, 'y', self.y)
         
         
-        
-        ### TODO:load the reward database in the __ini__ and use it here
-            
-            
-        if self.x-self.resolution[0]<self.disc_loc[0]<self.x+self.resolution[0]\
-        and self.y-self.resolution[1]<self.disc_loc[1]<self.y+self.resolution[1]:
-            self.reward=100
-            self.done=True
-            
-        else:
-            self.reward=-1
+
         
         
         
         observation=self.get_frame()
+        reward=np.sum(self.reward_of_patch)
+        
+        self.done = reward>0
+        
+
+
+        
+
         done=self.done
         info={}
-        reward=self.reward
+        
         
 
         return observation, reward, done, info
     
     def reset(self):
+        self.x=self.inital_loc[0]
+        self.y=self.inital_loc[1]
+        self.done=False
+
+        observation=self.get_frame()
+
+        return observation
+
         
     ### TODO: make sure to load all the frames in the daataset
         return
 
     def create_mask(self):
-        self.patch_rad = int(self.resolution[0]/2)
+        self.patch_rad = int(self.resolution[0]/2)  
         self.patch_mask = np.asarray([[1  if (x-self.patch_rad)**2 + (y-self.patch_rad)**2 < self.patch_rad ** 2 else 0 \
          for x in range(self.patch_rad*2)] for y in range(self.patch_rad*2)])
         self.patch_mask = np.expand_dims(self.patch_mask, -1) 
@@ -115,13 +122,18 @@ class optic_disc(gym.Env):
         # print(self.world.shape, self.patch.shape)
         # self.patch=self.world[1000:1154,1000:1154,:]
 
-        self.patch = self.world[ self.y-self.patch_rad:self.y+self.patch_rad,self.x-self.patch_rad:self.x+self.patch_rad, :] * self.patch_mask
-
+        self.patch = self.world[self.y-self.patch_rad:self.y+self.patch_rad,self.x-self.patch_rad:self.x+self.patch_rad, :] * self.patch_mask
+        self.reward_of_patch = self.rewards[self.y-self.patch_rad:self.y+self.patch_rad, self.x-self.patch_rad:self.x+self.patch_rad] * self.patch_mask[:,:,0]
+        # print('reward of patch: ', np.sum(self.reward_of_patch))
+        # cv2.imwrite('rPatch.jpg', self.reward_of_patch*255)
+        
         return self.patch
 
     def reward_map(self):
         self.rewards = np.asarray([[1  if (x-self.optic_x)**2 + (y-self.optic_y)**2 < self.optic_rad ** 2 else 0 \
          for x in range(self.world.shape[1])] for y in range(self.world.shape[0])])
+        self.total_reward=np.sum(self.rewards)
+        # print('total rewards', self.total_reward)
 
         
         
@@ -145,6 +157,7 @@ if __name__ == "__main__":
     # world = env.world
     img= env.create_world()
     # print('world shape', img.shape)
+    obs1=env.get_frame()
 
     for i in range(5):
         env.step(0)
@@ -163,6 +176,8 @@ if __name__ == "__main__":
     cv2.imwrite("world.jpg", np.array(img, dtype=np.uint8))
     cv2.imwrite("rewards.jpg", np.array(env.rewards*255, dtype=np.uint8))
     cv2.imwrite("rewards_world.jpg", np.array(np.expand_dims(env.rewards, -1)*img, dtype=np.uint8))
+    
+    print(env.rewards.shape, img.shape)
 
 
 
