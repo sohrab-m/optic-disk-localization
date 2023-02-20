@@ -43,8 +43,9 @@ class optic_disc(gym.Env):
         self.x_bounds=[self.resolution[0]//2 , self.world.shape[1]-self.resolution[0]//2]
         self.y_bounds=[self.resolution[0]//2 , self.world.shape[0]-self.resolution[0]//2]
 
-        self.observation=Box(low=0.0, high=255.0,
+        self.observation_space=Box(low=0, high=255,
                                 shape=(self.resolution[0], self.resolution[1], 3), dtype=np.uint8)
+                                
 
     def make_valid(self):
         self.x = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
@@ -82,7 +83,7 @@ class optic_disc(gym.Env):
         
         
         observation=self.get_frame()
-        reward=np.sum(self.reward_of_patch)
+        reward=np.float(np.sum(self.reward_of_patch))
         
         self.done = reward>0
         
@@ -126,7 +127,7 @@ class optic_disc(gym.Env):
         self.reward_of_patch = self.rewards[self.y-self.patch_rad:self.y+self.patch_rad, self.x-self.patch_rad:self.x+self.patch_rad] * self.patch_mask[:,:,0]
         # print('reward of patch: ', np.sum(self.reward_of_patch))
         # cv2.imwrite('rPatch.jpg', self.reward_of_patch*255)
-        
+        self.patch = np.uint8(self.patch)
         return self.patch
 
     def reward_map(self):
