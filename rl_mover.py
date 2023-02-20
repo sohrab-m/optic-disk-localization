@@ -37,7 +37,7 @@ class optic_disc(gym.Env):
         self.done=False
         
         # initial location in the form of (x,y)
-        
+        self.step_count = 0
   
         # resultion can  be an even number only
         self.x_bounds=[self.resolution[0]//2 , self.world.shape[1]-self.resolution[0]//2]
@@ -48,16 +48,20 @@ class optic_disc(gym.Env):
                                 
 
     def make_valid(self):
-        self.x = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
-        self.y = optic_disc.cut_off(self.y, self.y_bounds[0], self.y_bounds[1])
+        self.x, re1 = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
+        self.y, re2 = optic_disc.cut_off(self.y, self.y_bounds[0], self.y_bounds[1])
+        if re1 == -1 or re2 == -1:
+            return -1
+        else:
+            return 0
 
     @staticmethod
     def cut_off(x, m, M):
         if x < m:
-            return m
+            return [m, -1]
         if x > M:
-            return M
-        return x
+            return [M, -1]
+        return [x, 0]
     
     def step(self, action):
         self.action=action
@@ -73,7 +77,7 @@ class optic_disc(gym.Env):
             self.y+=(2*(self.action%2)-1) * self.resolution[1]
 
         # forcing the x and y values to be inside the acceptable range
-        self.make_valid()
+        step_cost = self.make_valid()
 
         # print('x', self.x, 'y', self.y)
         
@@ -85,7 +89,9 @@ class optic_disc(gym.Env):
         observation=self.get_frame()
         reward=np.float(np.sum(self.reward_of_patch))
         
-        self.done = reward>0
+        self.done = reward>0 or self.step_count >= 100
+
+        reward += step_cost
         
 
 
@@ -95,16 +101,15 @@ class optic_disc(gym.Env):
         info={}
         
         
-
+        self.step_count += 1
         return observation, reward, done, info
     
     def reset(self):
         self.x=self.inital_loc[0]
         self.y=self.inital_loc[1]
         self.done=False
-
         observation=self.get_frame()
-
+        self.step_count = 0
         return observation
 
         
