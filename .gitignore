@@ -3,4 +3,4 @@
 *.tif
 dataset
 annotation
-Training/
+Training\Models\
