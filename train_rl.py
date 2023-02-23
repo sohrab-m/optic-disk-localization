@@ -1,6 +1,6 @@
 from stable_baselines3.common.env_checker import check_env
 from rl_mover import optic_disc
-from stable_baselines3 import PPO, A2C
+from stable_baselines3 import PPO, A2C,DQN
 import os
 import time
 
@@ -21,7 +21,7 @@ if not os.path.exists(logdir):
 # env.reset()
 
 # model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
-model = A2C('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
+model = DQN('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
 
 TIMESTEPS = 1000000
 iters = 0

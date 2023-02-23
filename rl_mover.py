@@ -13,6 +13,7 @@ from gym.spaces import Discrete, Box
 import numpy as np
 import os
 import cv2
+from utils import angle_between
 
 
 class optic_disc(gym.Env):
@@ -35,6 +36,10 @@ class optic_disc(gym.Env):
         self.action_set=            [ 0,     1,    2,    3]
         self.action_space=Discrete(4)
         self.done=False
+        self.previous_x = None
+        self.previous_y = None
+        self.r_coeff = 100
+        self.invalid_coeff = 100
         
         # initial location in the form of (x,y)
         self.step_count = 0
@@ -51,7 +56,7 @@ class optic_disc(gym.Env):
         self.x, re1 = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
         self.y, re2 = optic_disc.cut_off(self.y, self.y_bounds[0], self.y_bounds[1])
         if re1 == -1 or re2 == -1:
-            return -1
+            return -self.r_coeff * self.invalid_coeff
         else:
             return 0
 
@@ -69,7 +74,8 @@ class optic_disc(gym.Env):
         # if self.action==0:
         #     self.move=[0,-154]
         self.move=[self.action//2,self.action%2]
-        
+        self.previous_x=self.x
+        self.previous_y=self.y
         
         if self.action//2:
             self.x+=(2*(self.action%2)-1) * self.resolution[0]
@@ -81,28 +87,25 @@ class optic_disc(gym.Env):
 
         # print('x', self.x, 'y', self.y)
         
-        
-
-        
-        
-        
+               
         observation=self.get_frame()
-        reward=np.float(np.sum(self.reward_of_patch))
-        
-        self.done = reward>0 or self.step_count >= 100
-
+        # reward=np.float(np.sum(self.reward_of_patch))
+        reward = self.calculate_reward()
         reward += step_cost
-        
-
-
-        
-
+        self.done= (self.curr_dist < self.optic_rad) or self.step_cunt > 100 or step_cost < 0
         done=self.done
-        info={}
-        
+        info={"x": self.x, "y": self.y, "reward": self.reward, 'done': done}
         
         self.step_count += 1
         return observation, reward, done, info
+
+    def calculate_reward(self):
+        self.prev_dist= np.sqrt((self.previous_x-self.optic_x)**2 + (self.previous_y-self.optic_y)**2)
+        self.curr_dist=  np.sqrt((self.x-self.optic_x)**2 + (self.y-self.optic_y)**2)
+
+        return (1 if self.prev_dist>self.curr_dist else -1)*self.r_coeff
+        
+
     
     def reset(self):
         self.x=self.inital_loc[0]
@@ -190,4 +193,3 @@ if __name__ == "__main__":
 
     
     
-
