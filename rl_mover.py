@@ -51,7 +51,7 @@ class optic_disc(gym.Env):
         self.x, re1 = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
         self.y, re2 = optic_disc.cut_off(self.y, self.y_bounds[0], self.y_bounds[1])
         if re1 == -1 or re2 == -1:
-            return -1
+            return -100
         else:
             return 0
 
@@ -89,7 +89,7 @@ class optic_disc(gym.Env):
         observation=self.get_frame()
         reward=np.float(np.sum(self.reward_of_patch))
         
-        self.done = reward>0 or self.step_count >= 100
+        self.done =  self.step_count >= 100
 
         reward += step_cost
         
@@ -133,6 +133,7 @@ class optic_disc(gym.Env):
         # print('reward of patch: ', np.sum(self.reward_of_patch))
         # cv2.imwrite('rPatch.jpg', self.reward_of_patch*255)
         self.patch = np.uint8(self.patch)
+        
         return self.patch
 
     def reward_map(self):

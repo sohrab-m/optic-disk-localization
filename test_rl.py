@@ -12,7 +12,7 @@ import time
 env = optic_disc()
 
 # Load the trained agent
-model_path = f"Training/Models/1676854481/40000"
+model_path = f"Training/Models/1676854481/110000"
 model=A2C.load(model_path, env=env)
 
 episodes=1
