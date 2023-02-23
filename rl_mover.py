@@ -136,13 +136,17 @@ class optic_disc(gym.Env):
         # print('reward of patch: ', np.sum(self.reward_of_patch))
         # cv2.imwrite('rPatch.jpg', self.reward_of_patch*255)
         self.patch = np.uint8(self.patch)
+        
         return self.patch
 
     def reward_map(self):
-        self.rewards = np.asarray([[1  if (x-self.optic_x)**2 + (y-self.optic_y)**2 < self.optic_rad ** 2 else 0 \
+        # self.rewards = np.asarray([[1  if (x-self.optic_x)**2 + (y-self.optic_y)**2 < self.optic_rad ** 2 else 0 \
+        #  for x in range(self.world.shape[1])] for y in range(self.world.shape[0])])
+        self.rewards = np.asarray([[ 255/(np.sqrt((x-self.optic_x)**2 + (y-self.optic_y)**2)+1) \
          for x in range(self.world.shape[1])] for y in range(self.world.shape[0])])
         self.total_reward=np.sum(self.rewards)
         # print('total rewards', self.total_reward)
+        
 
         
         
@@ -183,7 +187,7 @@ if __name__ == "__main__":
     # cv2.imwrite(str(i+5)+".jpg", np.array(obs1, dtype=np.uint8))
     
     cv2.imwrite("world.jpg", np.array(img, dtype=np.uint8))
-    cv2.imwrite("rewards.jpg", np.array(env.rewards*255, dtype=np.uint8))
+    cv2.imwrite("rewards.jpg", np.array(env.rewards, dtype=np.uint8))
     cv2.imwrite("rewards_world.jpg", np.array(np.expand_dims(env.rewards, -1)*img, dtype=np.uint8))
     
     print(env.rewards.shape, img.shape)

@@ -3,14 +3,17 @@ from rl_mover import optic_disc
 from stable_baselines3 import PPO, A2C,DQN
 import os
 import time
+from datetime import datetime
 
 env = optic_disc()
+date_time = datetime.now()
 
 # It will check your custom environment and output additional warnings if needed
-check_env(env)
-
-models_dir = f"Training/Models/{int(time.time())}/"
-logdir = f"Training/Logs/{int(time.time())}/"
+# check_env(env)
+date_time = datetime.strftime("%m-%d-%Y-%H-%M-%S")
+print(date_time)
+models_dir = f"Training/Models/{date_time}/"
+logdir = f"Training/Logs/{date_time}/"
 
 if not os.path.exists(models_dir):
 	os.makedirs(models_dir)
@@ -23,7 +26,7 @@ if not os.path.exists(logdir):
 # model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
 model = DQN('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
 
-TIMESTEPS = 1000000
+TIMESTEPS = 10000
 iters = 0
 
 while True:
