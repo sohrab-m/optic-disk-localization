@@ -11,7 +11,7 @@ import time
 env = optic_disc()
 
 # Load the trained agent
-model_path = f"Training/Models/02-23-2023-18-03-19/1000"
+model_path = f"Training/Models/03-09-2023-15-16-41/10000"
 model=DQN.load(model_path, env=env)
 
 episodes=1

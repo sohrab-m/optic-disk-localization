@@ -15,6 +15,7 @@ date_time = now.strftime("%m-%d-%Y-%H-%M-%S")
 print(date_time)
 models_dir = f"Training/Models/{date_time}/"
 logdir = f"Training/Logs/{date_time}/"
+
 if not os.path.exists(models_dir):
 	os.makedirs(models_dir)
 
@@ -24,12 +25,12 @@ if not os.path.exists(logdir):
 # env.reset()
 
 # model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=logdir)
-model = DQN('CnnPolicy', env, verbose=1, tensorboard_log=logdir, buffer_size=1000, exploration_fraction=0.99)
+model = DQN('CnnPolicy', env, verbose=1, tensorboard_log=logdir, buffer_size=1000, exploration_fraction=0.9)
 
-TIMESTEPS = 1000
+TIMESTEPS = 100000
 iters = 0
 
-while True:
+while iters<5:
     iters += 1
     print('iteration: ', iters)
     model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"A2C")

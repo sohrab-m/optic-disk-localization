@@ -39,7 +39,7 @@ class optic_disc(gym.Env):
         self.previous_x = None
         self.previous_y = None
         self.r_coeff = 100
-        self.invalid_coeff = 100
+        self.invalid_coeff = 1
         
         # initial location in the form of (x,y)
         self.step_count = 0
@@ -90,21 +90,26 @@ class optic_disc(gym.Env):
                
         observation=self.get_frame()
         # reward=np.float(np.sum(self.reward_of_patch))
-        reward = self.calculate_reward()
+        reward = self.calculate_reward_direction()    
         reward += step_cost
         self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100 or step_cost < 0
         done=self.done
-        info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action}
-        
+        info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action, 'prev_and_now': (self.prev_dist, self.curr_dist)}
+        # info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action}        
         self.step_count += 1
         return observation, reward, done, info
 
-    def calculate_reward(self):
+    def calculate_reward_direction(self):
         self.prev_dist= np.sqrt((self.previous_x-self.optic_x)**2 + (self.previous_y-self.optic_y)**2)
         self.curr_dist=  np.sqrt((self.x-self.optic_x)**2 + (self.y-self.optic_y)**2)
-
-        return (1 if self.prev_dist>self.curr_dist else -1)*self.r_coeff
-        
+        return (self.prev_dist - self.curr_dist)*self.r_coeff
+    
+    def calculate_reward_distance(self):
+        self.prev_dist= np.sqrt((self.previous_x-self.optic_x)**2 + (self.previous_y-self.optic_y)**2)
+        self.curr_dist=  np.sqrt((self.x-self.optic_x)**2 + (self.y-self.optic_y)**2)  
+        if self.curr_dist < self.resolution[0]:
+            return self.r_coeff ** 2
+        return self.curr_distance/self.world.shape[0]      
 
     
     def reset(self):
