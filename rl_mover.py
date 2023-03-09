@@ -92,9 +92,9 @@ class optic_disc(gym.Env):
         # reward=np.float(np.sum(self.reward_of_patch))
         reward = self.calculate_reward()
         reward += step_cost
-        self.done= (self.curr_dist < self.optic_rad) or self.step_cunt > 100 or step_cost < 0
+        self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100 or step_cost < 0
         done=self.done
-        info={"x": self.x, "y": self.y, "reward": self.reward, 'done': done}
+        info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action}
         
         self.step_count += 1
         return observation, reward, done, info
