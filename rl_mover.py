@@ -24,7 +24,7 @@ class optic_disc(gym.Env):
         self.create_world()
         
         self.resolution= (154,154)
-        self.inital_loc=[1000,1000]
+        self.inital_loc=[1500,500]
         self.x=self.inital_loc[0]
         self.y=self.inital_loc[1]
         self.optic_x = 800
@@ -39,7 +39,7 @@ class optic_disc(gym.Env):
         self.previous_x = None
         self.previous_y = None
         self.r_coeff = 100
-        self.invalid_coeff = 1
+        self.invalid_coeff = 100
         
         # initial location in the form of (x,y)
         self.step_count = 0

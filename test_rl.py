@@ -11,10 +11,11 @@ import time
 env = optic_disc()
 
 # Load the trained agent
-model_path = f"Training/Models/03-09-2023-15-16-41/10000"
-model=DQN.load(model_path, env=env)
+model_path = f"Training/Models/03-09-2023-16-04-42/50000"
+model=PPO.load(model_path, env=env)
+# model=DQN.load(model_path, env=env)
 
-episodes=1
+episodes=5
 
 for ep in range(episodes):
     obs=env.reset()
