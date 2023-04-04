@@ -14,23 +14,19 @@ import numpy as np
 import os
 import cv2
 from utils import angle_between
-import random
 
 
 class optic_disc(gym.Env):
     
-    def __init__(self, initial_loc=None):
+    def __init__(self):
         super(optic_disc, self).__init__()
         
         self.create_world()
-
-        if initial_loc is None:
-            initial_loc = (1000, 1000)
         
         self.resolution= (154,154)
-        self.initial_loc=initial_loc
-        self.x=self.initial_loc[0]
-        self.y=self.initial_loc[1]
+        self.inital_loc=[1500,500]
+        self.x=self.inital_loc[0]
+        self.y=self.inital_loc[1]
         self.optic_x = 800
         self.optic_y = 667
         self.optic_rad = 100
@@ -43,7 +39,7 @@ class optic_disc(gym.Env):
         self.previous_x = None
         self.previous_y = None
         self.r_coeff = 100
-        self.invalid_coeff = 1
+        self.invalid_coeff = 100
         
         # initial location in the form of (x,y)
         self.step_count = 0
@@ -56,11 +52,6 @@ class optic_disc(gym.Env):
                                 shape=(self.resolution[0], self.resolution[1], 3), dtype=np.uint8)
                                 
 
-    def generate_coordinates(self):
-        x = random.randint(self.x_bounds[0], self.x_bounds[1])
-        y = random.randint(self.y_bounds[0], self.y_bounds[1])
-        self.initial_loc = (x, y)
-    
     def make_valid(self):
         self.x, re1 = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
         self.y, re2 = optic_disc.cut_off(self.y, self.y_bounds[0], self.y_bounds[1])
@@ -122,9 +113,8 @@ class optic_disc(gym.Env):
 
     
     def reset(self):
-        self.generate_coordinates()
-        self.x= self.initial_loc[0]
-        self.y= self.initial_loc[1]
+        self.x=self.inital_loc[0]
+        self.y=self.inital_loc[1]
         self.done=False
         observation=self.get_frame()
         self.step_count = 0
