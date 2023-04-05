@@ -1,4 +1,4 @@
-import gym
+# import gym
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_checker import check_env
 from rl_mover import optic_disc
@@ -11,11 +11,11 @@ import time
 env = optic_disc()
 
 # Load the trained agent
-model_path = f"Training/Models/03-09-2023-16-04-42/50000"
-model=PPO.load(model_path, env=env)
-# model=DQN.load(model_path, env=env)
+model_path = f"Training/Models/04-05-2023-15-17-28/50000"
+# model=PPO.load(model_path, env=env)
+model=DQN.load(model_path, env=env)
 
-episodes=5
+episodes=2
 
 for ep in range(episodes):
     obs=env.reset()

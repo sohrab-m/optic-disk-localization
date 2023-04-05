@@ -24,14 +24,16 @@ class optic_disc(gym.Env):
         self.create_world()
         
         self.resolution= (154,154)
-        self.inital_loc=[1500,500]
-        self.x=self.inital_loc[0]
-        self.y=self.inital_loc[1]
+        # self.inital_loc=[1500,500]
+        self.initial_loc=[np.random.randint(low=self.resolution[1]+0, high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        self.x=self.initial_loc[0]
+        self.y=self.initial_loc[1]
         self.optic_x = 800
         self.optic_y = 667
         self.optic_rad = 100
         self.create_mask()
         self.reward_map()
+        self.reward=0
         # lets define the action set up, down, left, right
         self.action_set=            [ 0,     1,    2,    3]
         self.action_space=Discrete(4)
@@ -90,13 +92,16 @@ class optic_disc(gym.Env):
                
         observation=self.get_frame()
         # reward=np.float(np.sum(self.reward_of_patch))
-        reward = self.calculate_reward_direction()    
-        reward += step_cost
-        self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100 or step_cost < 0
+        dummy = self.calculate_reward_direction()    
+        self.reward = -1
+        reward=self.reward
+        self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100
         done=self.done
         info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action, 'prev_and_now': (self.prev_dist, self.curr_dist)}
         # info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action}        
         self.step_count += 1
+        # if self.step_count>99:
+        #     print('100th STEP', reward )
         return observation, reward, done, info
 
     def calculate_reward_direction(self):
@@ -109,12 +114,14 @@ class optic_disc(gym.Env):
         self.curr_dist=  np.sqrt((self.x-self.optic_x)**2 + (self.y-self.optic_y)**2)  
         if self.curr_dist < self.resolution[0]:
             return self.r_coeff ** 2
-        return self.curr_distance/self.world.shape[0]      
+        return self.curr_distance/self.world.shape[0] 
+
 
     
     def reset(self):
-        self.x=self.inital_loc[0]
-        self.y=self.inital_loc[1]
+        self.initial_loc=[np.random.randint(low=self.resolution[1]+0, high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        self.x=self.initial_loc[0]
+        self.y=self.initial_loc[1]
         self.done=False
         observation=self.get_frame()
         self.step_count = 0
@@ -161,7 +168,7 @@ class optic_disc(gym.Env):
     def create_world(self):
         # load the frame 
         # img_path = os.path.join(r"C:\Users\ssohr\OneDrive\Documents\optic-disk-localization\dataset\Base11\Base11", "20051019_38557_0100_PP.tif")
-        self.world = cv2.imread("sample_img.tif")
+        self.world = cv2.imread("world_cropped.jpg")
         return self.world
         
         
@@ -191,9 +198,9 @@ if __name__ == "__main__":
         img=cv2.putText(img, str(i+5), (env.x, env.y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2, cv2.LINE_AA)
     # cv2.imwrite(str(i+5)+".jpg", np.array(obs1, dtype=np.uint8))
     
-    cv2.imwrite("world.jpg", np.array(img, dtype=np.uint8))
-    cv2.imwrite("rewards.jpg", np.array(env.rewards, dtype=np.uint8))
-    cv2.imwrite("rewards_world.jpg", np.array(np.expand_dims(env.rewards, -1)*img, dtype=np.uint8))
+    # cv2.imwrite("world.jpg", np.array(img, dtype=np.uint8))
+    # cv2.imwrite("rewards.jpg", np.array(env.rewards, dtype=np.uint8))
+    # cv2.imwrite("rewards_world.jpg", np.array(np.expand_dims(env.rewards, -1)*img, dtype=np.uint8))
     
     print(env.rewards.shape, img.shape)
 

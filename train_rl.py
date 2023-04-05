@@ -24,14 +24,14 @@ if not os.path.exists(logdir):
 
 # env.reset()
 
-model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=logdir)
-# model = DQN('MlpPolicy', env, verbose=1, tensorboard_log=logdir, buffer_size=1000, exploration_fraction=0.9)
+# model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=logdir)
+model = DQN('CnnPolicy', env, verbose=1, tensorboard_log=logdir, buffer_size=1000,learning_starts=1000 , exploration_fraction=0.9)
 
-TIMESTEPS = 50000
+TIMESTEPS = 100000
 iters = 0
 
 while iters<10:
     iters += 1
     print('iteration: ', iters)
-    model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO")
+    model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"DQN") 
     model.save(f"{models_dir}/{TIMESTEPS*iters}")
