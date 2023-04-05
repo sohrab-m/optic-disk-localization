@@ -25,6 +25,7 @@ if not os.path.exists(logdir):
 	os.makedirs(logdir)
 
 # env.reset()
+model = DQN('CnnPolicy', env, verbose=1, tensorboard_log=logdir, buffer_size=1000,learning_starts=1000 , exploration_fraction=0.9)
 
 # Set hyperparameters
 buffer_size = 20
