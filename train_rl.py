@@ -2,7 +2,6 @@ from stable_baselines3.common.env_checker import check_env
 from rl_mover import optic_disc
 from stable_baselines3 import PPO, A2C
 from stable_baselines3.dqn import DQN
-from stable_baselines3.common.policies import CnnPolicy
 import os
 import time
 from datetime import datetime
@@ -32,12 +31,6 @@ buffer_size = 20
 exploration_fraction = 0.95
 learning_starts = 2500
 gamma = 1
-
-pretrained_network = torch.hub.load('pytorch/vision', 'resnet18', pretrained=True)
-policy = CnnPolicy(env.observation_space, env.action_space, feature_extractor=pretrained_network)
-
-# Create model with specified hyperparameters
-model = DQN(policy, env, verbose=1, tensorboard_log=logdir, buffer_size=buffer_size, exploration_fraction=exploration_fraction, learning_starts=learning_starts, gamma=gamma)
 
 TIMESTEPS = 100000
 iters = 0

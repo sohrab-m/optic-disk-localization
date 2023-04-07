@@ -1,0 +1,46 @@
+import os
+from PIL import Image
+from tqdm import tqdm
+
+# Define the directory to search for images
+directory = "dataset"
+
+# Define the threshold value for brightness level
+brightness_threshold = 10
+
+# Initialize the progress bar with the total number of images
+total_images = 0
+
+# Loop over every subdirectory
+for root, dirs, files in os.walk(directory):
+    for file in files:
+        # Check if the file is a JPEG image and does not already include "cropped" in its filename
+        if file.lower().endswith(".jpg") and "cropped" not in file.lower():
+            # Increment the total number of images
+            total_images += 1
+
+# Re-initialize the progress bar with the total number of images
+progress_bar = tqdm(total=total_images)
+
+# Loop over every subdirectory
+for root, dirs, files in os.walk(directory):
+    for file in files:
+        # Check if the file is a JPEG image and does not already include "cropped" in its filename
+        if file.lower().endswith(".jpg") and "cropped" not in file.lower():
+            # Construct the full path to the image file
+            filepath = os.path.join(root, file)
+            # Load the image
+            image = Image.open(filepath)
+            # Find the bounding box of the non-black region
+            bbox = image.convert('L').point(lambda x: 0 if x < brightness_threshold else 1, mode='1').getbbox()
+            # Crop the image to the bounding box
+            cropped = image.crop(bbox)
+            # Construct the new filename with "_cropped" added
+            new_filename = os.path.splitext(file)[0] + "_cropped.jpg"
+            # Save the cropped image with the new filename
+            cropped.save(os.path.join(root, new_filename))
+            # Update the progress bar
+            progress_bar.update(1)
+
+# Close the progress bar when done
+progress_bar.close()
