@@ -11,19 +11,33 @@ import time
 env = optic_disc()
 
 # Load the trained agent
-model_path = f"Training/Models/04-05-2023-15-17-28/50000"
+model_path = f"Training/Models/00/1000000"
 # model=PPO.load(model_path, env=env)
 model=DQN.load(model_path, env=env)
 
-episodes=2
+episodes = 100
 
 for ep in range(episodes):
     obs=env.reset()
     done=False
+    xs = []
+    ys = []
     while not done:
         action, _=model.predict(obs)
         obs, reward, done, info = env.step(action)
         x=env.x
         y=env.y
+        xs.append(x)
+        ys.append(y)
         print(info)
 
+    with open(f"Testing/moves_{ep}.txt", "w") as file:
+        # Write the first list to the file
+        for item in xs:
+            file.write(str(item) + " ")
+        file.write("\n")
+        
+        # Write the second list to the file
+        for item in ys:
+            file.write(str(item) + " ")
+        file.write("\n")
