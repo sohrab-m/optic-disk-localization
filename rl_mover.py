@@ -14,23 +14,29 @@ import numpy as np
 import os
 import cv2
 from utils import angle_between
-
+import scipy.io as sio
+import csv
+import random
+import torch
 
 class optic_disc(gym.Env):
     
-    def __init__(self):
+    def __init__(self, N=100, device=None):
         super(optic_disc, self).__init__()
-        
-        self.create_world()
-        
+
+        self.device= device
         self.resolution= (154,154)
+        self.optic_rad = 100
+        self.N = N
+        self.load_annots()
+        self.load_images()
+        self.create_world()
+
         # self.inital_loc=[1500,500]
-        self.initial_loc=[np.random.randint(low=self.resolution[1]+0, high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        self.initial_loc=[np.random.randint(low=self.resolution[1], high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
         self.x=self.initial_loc[0]
         self.y=self.initial_loc[1]
-        self.optic_x = 800
-        self.optic_y = 667
-        self.optic_rad = 100
+        
         self.create_mask()
         self.reward_map()
         self.reward=0
@@ -42,17 +48,42 @@ class optic_disc(gym.Env):
         self.previous_y = None
         self.r_coeff = 100
         self.invalid_coeff = 100
-        
+
         # initial location in the form of (x,y)
         self.step_count = 0
   
-        # resultion can  be an even number only
-        self.x_bounds=[self.resolution[0]//2 , self.world.shape[1]-self.resolution[0]//2]
-        self.y_bounds=[self.resolution[0]//2 , self.world.shape[0]-self.resolution[0]//2]
 
         self.observation_space=Box(low=0, high=255,
                                 shape=(self.resolution[0], self.resolution[1], 3), dtype=np.uint8)
-                                
+    
+    def load_images(self):
+        self.worlds = []
+        for idx in range(self.N):
+            self.worlds.append(cv2.imread(self.filepaths[idx]))
+
+    def load_annots(self):
+        # Create empty lists to store the data
+        self.filenames = []
+        self.x_values = []
+        self.y_values = []
+        self.filepaths = []
+        self.lefts = []
+        self.ups = []
+        self.rights = []
+        self.downs = []
+
+        # Open the CSV file and read the data into the lists
+        with open("merged_annots.csv", "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                self.filenames.append(row[0])
+                self.x_values.append(float(row[1]))
+                self.y_values.append(float(row[2]))
+                self.filepaths.append(row[3])
+                self.lefts.append(float(row[4]))   
+                self.ups.append(float(row[5]))   
+                self.rights.append(float(row[6]))   
+                self.downs.append(float(row[7]))               
 
     def make_valid(self):
         self.x, re1 = optic_disc.cut_off(self.x, self.x_bounds[0], self.x_bounds[1])
@@ -80,9 +111,9 @@ class optic_disc(gym.Env):
         self.previous_y=self.y
         
         if self.action//2:
-            self.x+=(2*(self.action%2)-1) * self.resolution[0]
+            self.x+=(2*(self.action%2)-1) * self.resolution[0] // 2
         else:
-            self.y+=(2*(self.action%2)-1) * self.resolution[1]
+            self.y+=(2*(self.action%2)-1) * self.resolution[1] // 2
 
         # forcing the x and y values to be inside the acceptable range
         step_cost = self.make_valid()
@@ -93,7 +124,7 @@ class optic_disc(gym.Env):
         observation=self.get_frame()
         # reward=np.float(np.sum(self.reward_of_patch))
         dummy = self.calculate_reward_direction()    
-        self.reward = -1
+        self.reward = -2*self.curr_dist/self.world.shape[0]
         reward=self.reward
         self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100
         done=self.done
@@ -119,7 +150,9 @@ class optic_disc(gym.Env):
 
     
     def reset(self):
-        self.initial_loc=[np.random.randint(low=self.resolution[1]+0, high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        self.create_world()
+        # self.reward_map()
+        self.initial_loc=[np.random.randint(low=self.resolution[1], high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
         self.x=self.initial_loc[0]
         self.y=self.initial_loc[1]
         self.done=False
@@ -144,7 +177,7 @@ class optic_disc(gym.Env):
         # self.patch=self.world[1000:1154,1000:1154,:]
 
         self.patch = self.world[self.y-self.patch_rad:self.y+self.patch_rad,self.x-self.patch_rad:self.x+self.patch_rad, :] * self.patch_mask
-        self.reward_of_patch = self.rewards[self.y-self.patch_rad:self.y+self.patch_rad, self.x-self.patch_rad:self.x+self.patch_rad] * self.patch_mask[:,:,0]
+        # self.reward_of_patch = self.rewards[self.y-self.patch_rad:self.y+self.patch_rad, self.x-self.patch_rad:self.x+self.patch_rad] * self.patch_mask[:,:,0]
         # print('reward of patch: ', np.sum(self.reward_of_patch))
         # cv2.imwrite('rPatch.jpg', self.reward_of_patch*255)
         self.patch = np.uint8(self.patch)
@@ -167,8 +200,18 @@ class optic_disc(gym.Env):
         
     def create_world(self):
         # load the frame 
-        # img_path = os.path.join(r"C:\Users\ssohr\OneDrive\Documents\optic-disk-localization\dataset\Base11\Base11", "20051019_38557_0100_PP.tif")
-        self.world = cv2.imread("world_cropped.jpg")
+        idx = random.randint(0, self.N-1)
+        self.idx = idx
+        self.world = self.worlds[idx]
+        self.left = self.lefts[idx]
+        self.up = self.ups[idx]
+        self.optic_x = self.x_values[idx] - self.left
+        self.optic_y = self.y_values[idx] - self.up
+        # resolution can be an even number only
+        self.x_bounds=[self.resolution[0]//2+1 , self.world.shape[1]-self.resolution[0]//2-1]
+        self.y_bounds=[self.resolution[0]//2+1 , self.world.shape[0]-self.resolution[0]//2-1]
+        self.world = torch.from_numpy(self.world)
+        self.world.to(self.device)
         return self.world
         
         
@@ -180,7 +223,7 @@ class optic_disc(gym.Env):
 if __name__ == "__main__":
     env = optic_disc()
     # world = env.world
-    img= env.create_world()
+    img = env.create_world()
     # print('world shape', img.shape)
     obs1=env.get_frame()
 
