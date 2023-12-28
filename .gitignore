@@ -7,3 +7,7 @@ annotation
 Training/
 Testing/
 Gifs/
+data/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/

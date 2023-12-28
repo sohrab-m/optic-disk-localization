@@ -35,8 +35,9 @@ if not os.path.exists(logdir):
 	os.makedirs(logdir)
 
 # env.reset()
-model = A2C('CnnPolicy', env, verbose=1, tensorboard_log=logdir, device=device, learning_rate=0.007, ent_coef=0.1) # , buffer_size=400000,learning_starts=20000 , exploration_fraction=0.95,
-
+# model = A2C('CnnPolicy', env, verbose=1, tensorboard_log=logdir, device=device, learning_rate=0.007, ent_coef=0.1) # , buffer_size=400000,learning_starts=20000 , exploration_fraction=0.95,
+model = DQN('CnnPolicy', env, verbose=1, tensorboard_log=logdir, device=device, 
+            buffer_size =10000, learning_starts=500,  learning_rate=0.007, target_update_interval=1000, ent_coef=0.1) # , buffer_size=400000,learning_starts=20000 , exploration_fraction=0.95,
 model = DataParallel(model)
 
 TIMESTEPS = 100000

@@ -18,27 +18,33 @@ import scipy.io as sio
 import csv
 import random
 import torch
+import ast
 
 class optic_disc(gym.Env):
     
-    def __init__(self, N=100, device=None):
+    def __init__(self, path_to_annotations, random_start=True, N=100, device=None):
         super(optic_disc, self).__init__()
 
         self.device= device
         self.resolution= (154,154)
-        self.optic_rad = 100
+        self.optic_rad = 150
         self.N = N
-        self.load_annots()
+        # self.load_annots()
+        self.load_annots_path_xy(path_to_annotations)
         self.load_images()
         self.create_world()
 
-        # self.inital_loc=[1500,500]
-        self.initial_loc=[np.random.randint(low=self.resolution[1], high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        self.initial_loc=[np.random.randint(low=self.resolution[1], high=self.world.shape[1]-self.resolution[1]) ,
+                          np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])] if random_start else [700,700]
+        # if random_start:
+        #     self.initial_loc=[np.random.randint(low=self.resolution[1], high=self.world.shape[1]-self.resolution[1]) ,np.random.randint(low=self.resolution[0], high=self.world.shape[0]-self.resolution[0])]
+        # else:
+        #     self.inital_loc=[700,700]
         self.x=self.initial_loc[0]
         self.y=self.initial_loc[1]
         
         self.create_mask()
-        self.reward_map()
+        # self.reward_map()
         self.reward=0
         # lets define the action set up, down, left, right
         self.action_set=            [ 0,     1,    2,    3]
@@ -46,7 +52,7 @@ class optic_disc(gym.Env):
         self.done=False
         self.previous_x = None
         self.previous_y = None
-        self.r_coeff = 100
+        self.r_coeff = 1
         self.invalid_coeff = 100
 
         # initial location in the form of (x,y)
@@ -58,8 +64,26 @@ class optic_disc(gym.Env):
     
     def load_images(self):
         self.worlds = []
+        self.N = len(self.filepaths)
         for idx in range(self.N):
             self.worlds.append(cv2.imread(self.filepaths[idx]))
+
+    def load_annots_path_xy(self, path_to_annotations):
+        self.filepaths=[]
+        self.targets=[]
+        print('loading annotations from', path_to_annotations)
+        with open(path_to_annotations, "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                self.filepaths.append(row[0])
+                coords=ast.literal_eval(row[1])
+                self.targets.append(coords)
+
+        
+        print('len optic disc imgs', len(self.filepaths))
+        print('len of optic disc locations', len(self.targets))
+        
+
 
     def load_annots(self):
         # Create empty lists to store the data
@@ -123,9 +147,11 @@ class optic_disc(gym.Env):
                
         observation=self.get_frame()
         # reward=np.float(np.sum(self.reward_of_patch))
-        dummy = self.calculate_reward_direction()    
-        self.reward = -2*self.curr_dist/self.world.shape[0]
-        reward=self.reward
+        dummy = self.calculate_reward_direction()  #just finds the distances at all times  
+        # self.reward = -2*self.curr_dist/self.world.shape[0]
+        self.calculate_reward_uniform()
+
+        reward=self.reward * self.r_coeff 
         self.done= (self.curr_dist < self.optic_rad) or self.step_count > 100
         done=self.done
         info={"x": self.x, "y": self.y, "reward": reward, 'done': done, 'action': self.action, 'prev_and_now': (self.prev_dist, self.curr_dist)}
@@ -146,6 +172,14 @@ class optic_disc(gym.Env):
         if self.curr_dist < self.resolution[0]:
             return self.r_coeff ** 2
         return self.curr_distance/self.world.shape[0] 
+
+    def calculate_reward_uniform(self): #reward is -1 for each step that does not find the disc and 1 otherwise
+        if self.curr_dist < self.optic_rad:
+            print('found the disc')
+            self.reward = 1
+        else:
+            self.reward = -1
+        
 
 
     
@@ -197,16 +231,20 @@ class optic_disc(gym.Env):
         
     def close(self):
         return
-        
+    
     def create_world(self):
         # load the frame 
         idx = random.randint(0, self.N-1)
         self.idx = idx
         self.world = self.worlds[idx]
-        self.left = self.lefts[idx]
-        self.up = self.ups[idx]
-        self.optic_x = self.x_values[idx] - self.left
-        self.optic_y = self.y_values[idx] - self.up
+        self.optic_x =self.targets[idx][0]
+        self.optic_y =self.targets[idx][1]
+
+        # self.left = self.lefts[idx]
+        # self.up = self.ups[idx]
+        # self.optic_x = self.x_values[idx] - self.left
+        # self.optic_y = self.y_values[idx] - self.up
+
         # resolution can be an even number only
         self.x_bounds=[self.resolution[0]//2+1 , self.world.shape[1]-self.resolution[0]//2-1]
         self.y_bounds=[self.resolution[0]//2+1 , self.world.shape[0]-self.resolution[0]//2-1]
@@ -221,31 +259,36 @@ class optic_disc(gym.Env):
         # self.location[0]=self.location[0]+
 
 if __name__ == "__main__":
-    env = optic_disc()
-    # world = env.world
+    path_xy_annots = "data/sample_optic_disc/path_xy_annots_.csv"
+    env = optic_disc(path_xy_annots)
+
     img = env.create_world()
-    # print('world shape', img.shape)
+    img=np.array(img, dtype=np.uint8)
+    
+    
+
     obs1=env.get_frame()
 
-    for i in range(5):
-        env.step(0)
-        obs1=env.get_frame()
-        cv2.imwrite(str(i)+".jpg", np.array(obs1, dtype=np.uint8))
+    for i in range(3):
+        observation, reward, done, info = env.step(1)
+        # obs1=env.get_frame()
+        print('reward from obs1', observation.shape, reward, done, info)
+        cv2.imwrite(str(i)+".jpg", np.array(observation, dtype=np.uint8))
+        
         img=cv2.putText(img, str(i), (env.x, env.y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2, cv2.LINE_AA)
         
 
-    for i in range(5):
-        env.step(3)
-        obs1=env.get_frame()
-        cv2.imwrite(str(i+5)+".jpg", np.array(obs1, dtype=np.uint8))
+    for i in range(6):
+        observation, reward, done, info = env.step(3)
+        print('reward from obs1',observation.shape, reward, done, info)
+        cv2.imwrite(str(i+5)+".jpg", np.array(observation, dtype=np.uint8))
         img=cv2.putText(img, str(i+5), (env.x, env.y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2, cv2.LINE_AA)
     # cv2.imwrite(str(i+5)+".jpg", np.array(obs1, dtype=np.uint8))
-    
     # cv2.imwrite("world.jpg", np.array(img, dtype=np.uint8))
     # cv2.imwrite("rewards.jpg", np.array(env.rewards, dtype=np.uint8))
     # cv2.imwrite("rewards_world.jpg", np.array(np.expand_dims(env.rewards, -1)*img, dtype=np.uint8))
-    
-    print(env.rewards.shape, img.shape)
+    cv2.imwrite("world_after_step.jpg", img)
+    print(img.shape)
 
 
 
